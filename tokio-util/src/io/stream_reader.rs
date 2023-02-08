@@ -300,6 +300,21 @@ where
     }
 }
 
+impl<S, B, E> Stream for StreamReader<S, B>
+where
+    S: Stream<Item = Result<B, E>>,
+    B: Buf,
+{
+    type Item = Result<B, E>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        match self.as_mut().project().chunk.take() {
+            Some(chunk) if chunk.has_remaining() => Poll::Ready(Some(Ok(chunk))),
+            _ => self.project().inner.poll_next(cx),
+        }
+    }
+}
+
 // The code below is a manual expansion of the code that pin-project-lite would
 // generate. This is done because pin-project-lite fails by hitting the recusion
 // limit on this struct. (Every line of documentation is handled recursively by
